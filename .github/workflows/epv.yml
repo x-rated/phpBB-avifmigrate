@@ -1,0 +1,39 @@
+# Runs phpBB's Extension Pre Validator (EPV) on this repository.
+# Result: Actions tab > "EPV" > latest run > job log (look for errors / warnings).
+name: EPV
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  epv:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out the extension
+        uses: actions/checkout@v5
+        with:
+          path: ext
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+          tools: composer:v2
+
+      - name: Get EPV
+        run: |
+          git clone --depth=1 https://github.com/phpbb/epv.git epv
+          cd epv
+          composer install --no-interaction --no-progress
+
+      # EPV expects the package layout vendor/extension/composer.json (same as inside the zip for the extension DB)
+      - name: Build package layout
+        run: |
+          mkdir -p pkg/slamb/avifmigrate
+          rsync -a --exclude='.git' --exclude='.github' ext/ pkg/slamb/avifmigrate/
+          find pkg -maxdepth 3 | sort
+
+      - name: Run EPV
+        run: php epv/src/EPV.php run --dir="$GITHUB_WORKSPACE/pkg" --debug

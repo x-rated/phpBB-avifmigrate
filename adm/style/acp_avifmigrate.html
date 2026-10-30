@@ -1,0 +1,276 @@
+<!-- INCLUDE overall_header.html -->
+
+<a id="maincontent"></a>
+
+<h1>{L_ACP_AVIFMIGRATE}</h1>
+<p>{L_AVIFMIGRATE_EXPLAIN}</p>
+
+<!-- IF not S_AVIF_SUPPORTED -->
+<div class="errorbox"><p>{L_AVIFMIGRATE_NO_GD}</p></div>
+<!-- ENDIF -->
+
+<fieldset>
+	<legend>{L_AVIFMIGRATE_CHECKS}</legend>
+	<table class="table1">
+		<tbody>
+		<!-- BEGIN checks -->
+		<tr class="<!-- IF checks.S_ROW_COUNT is even -->row1<!-- ELSE -->row2<!-- ENDIF -->">
+			<td style="width:30px;font-weight:bold;color:<!-- IF checks.STATE == 'ok' -->#2a8a2a<!-- ELSEIF checks.STATE == 'warn' -->#c07000<!-- ELSE -->#b00<!-- ENDIF -->"><!-- IF checks.STATE == 'ok' -->&#10003;<!-- ELSEIF checks.STATE == 'warn' -->!<!-- ELSE -->&#10007;<!-- ENDIF --></td>
+			<td>{checks.LABEL}</td>
+			<td>{checks.DETAIL}</td>
+		</tr>
+		<!-- END checks -->
+		</tbody>
+	</table>
+</fieldset>
+
+<!-- IF S_SAV_ANY -->
+<fieldset>
+	<legend>{L_AVIFMIGRATE_SAVINGS}</legend>
+	<p style="font-size:1.4em;margin:6px 0"><strong>{SAV_TOTAL_SAVED}</strong> ({SAV_TOTAL_PERCENT} %) &mdash; {SAV_TOTAL_COUNT} {L_AVIFMIGRATE_FILES_CONVERTED}, {SAV_TOTAL_BEFORE} &rarr; {SAV_TOTAL_AFTER}</p>
+	<!-- IF S_SAV_EST --><p>{L_AVIFMIGRATE_ESTIMATE}{L_COLON} <strong>~ {SAV_TOTAL_EST}</strong></p><!-- ENDIF -->
+	<table class="table1">
+		<thead><tr><th></th><th>{L_AVIFMIGRATE_COL_COUNT}</th><th>{L_AVIFMIGRATE_COL_BEFORE}</th><th>{L_AVIFMIGRATE_COL_AFTER}</th><th>{L_AVIFMIGRATE_COL_SAVED}</th><th>{L_AVIFMIGRATE_COL_READY}</th><th>{L_AVIFMIGRATE_COL_ESTIMATE}</th></tr></thead>
+		<tbody>
+		<!-- BEGIN savings -->
+		<tr class="<!-- IF savings.S_ROW_COUNT is even -->row1<!-- ELSE -->row2<!-- ENDIF -->">
+			<td><strong>{savings.LABEL}</strong></td><td>{savings.COUNT}</td><td>{savings.BEFORE}</td><td>{savings.AFTER}</td><td>{savings.SAVED} ({savings.PERCENT} %)</td><td>{savings.READY}</td><td>~ {savings.EST}</td>
+		</tr>
+		<!-- END savings -->
+		</tbody>
+	</table>
+</fieldset>
+<!-- ENDIF -->
+
+<fieldset>
+	<legend>{L_AVIFMIGRATE_STATUS_TITLE}</legend>
+	<table class="table1">
+		<thead><tr><th></th><th>{L_AVIFMIGRATE_TYPE_ATTACH}</th><th>{L_AVIFMIGRATE_TYPE_AVATAR}</th><th></th></tr></thead>
+		<tbody>
+		<!-- BEGIN status -->
+		<tr class="<!-- IF status.S_ROW_COUNT is even -->row1<!-- ELSE -->row2<!-- ENDIF -->">
+			<td><strong>{status.LABEL}</strong></td>
+			<td><!-- IF status.A_URL --><a href="{status.A_URL}">{status.A_COUNT}</a><!-- ELSE -->{status.A_COUNT}<!-- ENDIF --></td>
+			<td><!-- IF status.V_URL --><a href="{status.V_URL}">{status.V_COUNT}</a><!-- ELSE -->{status.V_COUNT}<!-- ENDIF --></td>
+			<td>{status.HINT}</td>
+		</tr>
+		<!-- END status -->
+		</tbody>
+	</table>
+</fieldset>
+
+<form id="avifmigrate" method="post" action="{U_ACTION}"
+	data-new-attach="{NEW_ATTACH}" data-new-avatar="{NEW_AVATAR}"
+	data-left-attach="{REMAIN_ATTACH}" data-left-avatar="{REMAIN_AVATAR}"
+	data-supported="<!-- IF S_AVIF_SUPPORTED -->1<!-- ELSE -->0<!-- ENDIF -->"
+	data-t-attach="{L_AVIFMIGRATE_TYPE_ATTACH}" data-t-avatar="{L_AVIFMIGRATE_TYPE_AVATAR}"
+	data-s-analyze="{L_AVIFMIGRATE_SUM_ANALYZE}" data-s-convert="{L_AVIFMIGRATE_SUM_CONVERT}"
+	data-s-confirm="{L_AVIFMIGRATE_CONFIRM_RUN}" data-s-done="{L_AVIFMIGRATE_DONE}" data-s-stopped="{L_AVIFMIGRATE_STOPPED}"
+	data-s-error="{L_AVIFMIGRATE_ERROR}" data-s-saved="{L_AVIFMIGRATE_SAVED_NOW}" data-s-analysed="{L_AVIFMIGRATE_ANALYSED}"
+	data-s-ready="{L_AVIFMIGRATE_READY}" data-s-broken="{L_AVIFMIGRATE_BROKEN_N}" data-s-unsup="{L_AVIFMIGRATE_UNSUPPORTED_N}"
+	data-s-login="{L_AVIFMIGRATE_LOGIN_EXPIRED}" data-s-left="{L_AVIFMIGRATE_REMAINING}" data-s-ok="{L_AVIFMIGRATE_STATUS_OK}">
+	<fieldset>
+		<legend>{L_AVIFMIGRATE_RUN}</legend>
+		<dl>
+			<dt><label for="item_type">{L_AVIFMIGRATE_WHAT}{L_COLON}</label></dt>
+			<dd>
+				<select name="item_type" id="item_type">
+					<option value="">{L_AVIFMIGRATE_CHOOSE}</option>
+					<option value="attach">{L_AVIFMIGRATE_TYPE_ATTACH} ({REMAIN_ATTACH} {L_AVIFMIGRATE_REMAINING})</option>
+					<option value="avatar">{L_AVIFMIGRATE_TYPE_AVATAR} ({REMAIN_AVATAR} {L_AVIFMIGRATE_REMAINING})</option>
+				</select>
+			</dd>
+		</dl>
+		<dl>
+			<dt><label for="limit">{L_AVIFMIGRATE_COUNT}{L_COLON}</label><br><span>{L_AVIFMIGRATE_COUNT_EXPLAIN}</span></dt>
+			<dd>
+				<input type="number" name="limit" id="limit" min="1" value="" class="inputbox autowidth">
+				<label><input type="checkbox" id="all_left"> {L_AVIFMIGRATE_ALL_LEFT}</label>
+			</dd>
+		</dl>
+		<p id="avif_summary" style="font-weight:bold"></p>
+		<p class="submit-buttons">
+			<input class="button2" type="button" id="btn_analyze" value="{L_AVIFMIGRATE_ANALYZE}" disabled="disabled">
+			<input class="button1" type="button" id="btn_convert" value="{L_AVIFMIGRATE_CONVERT}" disabled="disabled">
+			<input class="button2" type="button" id="btn_stop" value="{L_AVIFMIGRATE_STOP}" style="display:none">
+		</p>
+		<p>{L_AVIFMIGRATE_ANALYZE_EXPLAIN}</p>
+		{S_FORM_TOKEN}
+	</fieldset>
+</form>
+
+<div id="avif_progress" style="display:none">
+	<h2 id="avif_ptitle"></h2>
+	<div style="background:#ddd;border-radius:4px;height:20px;overflow:hidden;max-width:600px"><div id="avif_bar" style="background:#2a8a2a;height:20px;width:0"></div></div>
+	<p id="avif_pinfo"></p>
+	<table class="table1" id="avif_results" style="display:none">
+		<thead><tr><th style="width:130px">{L_AVIFMIGRATE_COL_PREVIEW}</th><th>{L_AVIFMIGRATE_COL_ITEM}</th><th>{L_AVIFMIGRATE_COL_STATUS}</th><th>{L_AVIFMIGRATE_COL_SIZE}</th><th>{L_AVIFMIGRATE_COL_WHERE}</th></tr></thead>
+		<tbody></tbody>
+	</table>
+</div>
+
+<h2>{L_AVIFMIGRATE_RECENT}</h2>
+<!-- IF .recent -->
+<table class="table1">
+	<thead><tr><th>{L_AVIFMIGRATE_COL_ITEM}</th><th>{L_AVIFMIGRATE_COL_STATUS}</th><th>{L_AVIFMIGRATE_COL_SIZE}</th><th>{L_AVIFMIGRATE_COL_WHERE}</th><th>{L_AVIFMIGRATE_COL_TIME}</th></tr></thead>
+	<tbody>
+	<!-- BEGIN recent -->
+	<tr class="<!-- IF recent.S_ROW_COUNT is even -->row1<!-- ELSE -->row2<!-- ENDIF -->">
+		<td>{recent.TYPE} #{recent.ID}: {recent.NAME}</td>
+		<td><!-- IF recent.OK -->{L_AVIFMIGRATE_STATUS_OK}<!-- ELSE -->{recent.STATUS_L}<!-- IF recent.MESSAGE --><br><em>{recent.MESSAGE}</em><!-- ENDIF --><!-- ENDIF --></td>
+		<td><!-- IF recent.OK -->{recent.BEFORE} &rarr; {recent.AFTER} ({recent.SAVED})<!-- ELSEIF recent.BEFORE -->{recent.BEFORE}<!-- ENDIF --></td>
+		<td><!-- IF recent.U_WHERE --><a href="{recent.U_WHERE}" target="_blank" rel="noopener">{recent.WHERE}</a><!-- ELSE -->{recent.WHERE}<!-- ENDIF --></td>
+		<td style="white-space:nowrap">{recent.TIME}</td>
+	</tr>
+	<!-- END recent -->
+	</tbody>
+</table>
+<!-- ELSE -->
+<p>{L_AVIFMIGRATE_NOTHING_YET}</p>
+<!-- ENDIF -->
+
+<p><a class="button2" href="{U_REVIEW}" style="padding:3px 10px">{L_AVIFMIGRATE_REVIEW}</a></p>
+
+<!-- INCLUDE acp_avifmigrate_js.html -->
+<script>
+(function () {
+	var form = document.getElementById('avifmigrate');
+	var D = form.dataset;
+	var sel = document.getElementById('item_type'), lim = document.getElementById('limit'), all = document.getElementById('all_left');
+	var bA = document.getElementById('btn_analyze'), bC = document.getElementById('btn_convert'), bS = document.getElementById('btn_stop');
+	var sum = document.getElementById('avif_summary');
+	var box = document.getElementById('avif_progress'), bar = document.getElementById('avif_bar');
+	var ptitle = document.getElementById('avif_ptitle'), pinfo = document.getElementById('avif_pinfo');
+	var rtable = document.getElementById('avif_results'), rbody = rtable.querySelector('tbody');
+	var running = false, stop = false;
+
+	function type() { return sel.value; }
+	function name(t) { return t === 'avatar' ? D.tAvatar : D.tAttach; }
+	function left(t) { return parseInt(t === 'avatar' ? D.leftAvatar : D.leftAttach, 10) || 0; }
+	function fresh(t) { return parseInt(t === 'avatar' ? D.newAvatar : D.newAttach, 10) || 0; }
+	function count() {
+		var t = type();
+		if (!t) { return 0; }
+		if (all.checked) { return left(t); }
+		var n = parseInt(lim.value, 10);
+		return (n > 0) ? Math.min(n, left(t)) : 0;
+	}
+	function fmt(s, a) { return s.replace('%1', a[0]).replace('%2', a[1]); }
+	function refresh() {
+		var t = type();
+		lim.disabled = all.checked;
+		bA.disabled = running || !t;
+		bC.disabled = running || !t || count() < 1 || D.supported !== '1';
+		sum.textContent = '';
+		if (t) {
+			sum.textContent = fmt(D.sConvert, [count(), name(t)]) + ' | ' + fmt(D.sAnalyze, [fresh(t), name(t)]);
+		}
+	}
+	sel.addEventListener('change', refresh);
+	lim.addEventListener('input', refresh);
+	all.addEventListener('change', refresh);
+
+	// A CDN/WAF may answer 429 (too many requests) or a gateway error. Back off for longer and longer
+	// (the limit window is unknown), and be slower between steps from then on. Stop ends it any time.
+	var gap = 2500;
+	function sleep(ms, label) {
+		return new Promise(function (res) {
+			var left = Math.ceil(ms / 1000);
+			(function tick() {
+				if (stop || left <= 0) { return res(); }
+				pinfo.textContent = label + ' ' + left + ' s ...';
+				left--;
+				setTimeout(tick, 1000);
+			})();
+		});
+	}
+	function post(extra, tries) {
+		tries = tries || 0;
+		var fd = new FormData(form);
+		for (var k in extra) { fd.append(k, extra[k]); }
+		return fetch(form.action, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+			.then(function (r) {
+				if ((r.status === 429 || r.status === 502 || r.status === 503 || r.status === 504) && tries < 8 && !stop) {
+					var wait = Math.max((parseInt(r.headers.get('Retry-After'), 10) || 0) * 1000, 20000 * (tries + 1));
+					gap = Math.min(gap * 2, 30000);
+					return sleep(wait, 'HTTP ' + r.status + ' -').then(function () { return post(extra, tries + 1); });
+				}
+				if (!r.ok) { throw new Error('HTTP ' + r.status + (r.status === 403 ? ' (' + D.sLogin + ')' : '')); }
+				return r.json().then(function (j) { if (j.error) { throw new Error(j.error); } return j; });
+			});
+	}
+	function pause() { return new Promise(function (res) { setTimeout(res, gap); }); }
+	function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+	function url(u) { return u.replace(/&amp;/g, '&'); }
+	function addRow(it) {
+		var tr = document.createElement('tr');
+		tr.className = rbody.children.length % 2 ? 'row2' : 'row1';
+		var img = it.U_IMG ? '<a href="' + esc(url(it.U_FULL)) + '" target="_blank" rel="noopener"><img data-src="' + esc(url(it.U_IMG)) + '" data-full="' + esc(url(it.U_FULL)) + '" alt="&#8987;" style="max-width:120px;max-height:90px;display:block"></a>' : '';
+		// NAME, MESSAGE, STATUS_L, WHERE are already HTML-escaped by the server
+		var st = it.OK ? esc(D.sOk) : it.STATUS_L + (it.MESSAGE ? '<br><em>' + it.MESSAGE + '</em>' : '');
+		var sz = it.OK ? it.BEFORE + ' &rarr; ' + it.AFTER + ' (' + it.SAVED + ')' : it.BEFORE;
+		var wh = it.U_WHERE ? '<a href="' + esc(url(it.U_WHERE)) + '" target="_blank" rel="noopener">' + it.WHERE + '</a>' : it.WHERE;
+		tr.innerHTML = '<td>' + img + '</td><td>' + it.TYPE + ' #' + it.ID + ': ' + it.NAME + '</td><td>' + st + '</td><td>' + sz + '</td><td>' + wh + '</td>';
+		rbody.insertBefore(tr, rbody.firstChild);
+		window.avifLoadPreviews(tr);
+	}
+	function lock(on) {
+		running = on; stop = false;
+		window.avifPausePreviews(on); // no image requests while batches run: a CDN counts them against the rate limit
+		bS.style.display = on ? '' : 'none';
+		sel.disabled = on;
+		refresh();
+	}
+	function fail(e) { pinfo.textContent = D.sError + ' ' + e.message; lock(false); }
+
+	bS.addEventListener('click', function () { stop = true; bS.disabled = true; });
+
+	bA.addEventListener('click', function () {
+		var t = type(); if (!t) { return; }
+		var total = fresh(t), done = 0, r = 0, b = 0, u = 0;
+		lock(true); bS.disabled = false; box.style.display = ''; rtable.style.display = 'none';
+		ptitle.textContent = D.sAnalysed.replace(/[:\s]+$/, '') + ' - ' + name(t);
+		bar.style.width = '0';
+		(function step() {
+			if (stop) { pinfo.textContent = D.sStopped; return finish(); }
+			post({ do: 'analyze', item_type: t }).then(function (j) {
+				var n = j.ready + j.broken + j.unsupported;
+				done += n; r += j.ready; b += j.broken; u += j.unsupported;
+				var tot = Math.max(total, done);
+				bar.style.width = (tot ? Math.min(100, done / tot * 100) : 100) + '%';
+				pinfo.textContent = done + ' / ' + tot + ' - ' + D.sReady + ': ' + r + ', ' + D.sBroken + ': ' + b + ', ' + D.sUnsup + ': ' + u;
+				if (n === 0 || j.left === 0) { bar.style.width = '100%'; pinfo.textContent += ' - ' + D.sDone; return finish(); }
+				pause().then(step);
+			}).catch(fail);
+		})();
+		function finish() { lock(false); setTimeout(function () { location.reload(); }, 2500); }
+	});
+
+	bC.addEventListener('click', function () {
+		var t = type(), n = count(); if (!t || n < 1) { return; }
+		if (!window.confirm(fmt(D.sConfirm, [n, name(t)]))) { return; }
+		var done = 0, saved = 0;
+		lock(true); bS.disabled = false; box.style.display = ''; rtable.style.display = ''; rbody.innerHTML = '';
+		ptitle.textContent = D.sConvertTitle || name(t);
+		bar.style.width = '0';
+		(function step() {
+			if (stop) { pinfo.textContent += ' - ' + D.sStopped; return finish(); }
+			var chunk = Math.min(20, n - done);
+			post({ do: 'convert', item_type: t, limit: chunk }).then(function (j) {
+				done += j.items.length; saved += j.saved;
+				j.items.forEach(addRow);
+				bar.style.width = Math.min(100, done / n * 100) + '%';
+				pinfo.textContent = done + ' / ' + n + ' - ' + D.sSaved + ': ' + (saved / 1048576).toFixed(2) + ' MB - ' + j.left + ' ' + D.sLeft;
+				if (j.items.length === 0 || done >= n || j.left === 0) { pinfo.textContent += ' - ' + D.sDone; return finish(); }
+				pause().then(step);
+			}).catch(fail);
+		})();
+		function finish() { lock(false); D['left' + (t === 'avatar' ? 'Avatar' : 'Attach')] = Math.max(0, left(t) - done); refresh(); }
+	});
+
+	refresh();
+	window.avifLoadPreviews(document);
+})();
+</script>
+
+<!-- INCLUDE overall_footer.html -->

@@ -1,0 +1,37 @@
+parameters:
+    tables.slamb_avifmigrate_log: '%core.table_prefix%avifmigrate_log'
+
+services:
+    slamb.avifmigrate.converter:
+        class: slamb\avifmigrate\core\converter
+        arguments:
+            - '@dbal.conn'
+            - '@config'
+            - '%core.root_path%'
+            - '%tables.slamb_avifmigrate_log%'
+            - '%tables.attachments%'
+            - '%tables.users%'
+
+    slamb.avifmigrate.command.convert:
+        class: slamb\avifmigrate\console\convert
+        arguments:
+            - '@user'
+            - '@slamb.avifmigrate.converter'
+        tags:
+            - { name: console.command }
+
+    slamb.avifmigrate.command.analyze:
+        class: slamb\avifmigrate\console\analyze
+        arguments:
+            - '@user'
+            - '@slamb.avifmigrate.converter'
+        tags:
+            - { name: console.command }
+
+    slamb.avifmigrate.command.thumbs:
+        class: slamb\avifmigrate\console\thumbs
+        arguments:
+            - '@user'
+            - '@slamb.avifmigrate.converter'
+        tags:
+            - { name: console.command }

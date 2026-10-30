@@ -1,0 +1,41 @@
+<script>
+/* Preview loader shared by the overview and the review list. Loads img[data-src] through a small queue
+   (a few at a time) so a CDN/WAF rate limit (HTTP 429) is not triggered; a failed image is retried with
+   a growing delay and finally once as the full image. */
+(function () {
+	var queue = [], active = 0, MAX = 2, GAP = 600, paused = false;
+	function next() {
+		while (!paused && active < MAX && queue.length) { load(queue.shift(), 0, false); }
+	}
+	function load(im, tries, full) {
+		active++;
+		var url = full ? im.getAttribute('data-full') : im.getAttribute('data-src');
+		var done = function () { active--; setTimeout(next, GAP); };
+		im.onload = function () { done(); };
+		im.onerror = function () {
+			if (tries < 3) {
+				active--;
+				setTimeout(function () { load(im, tries + 1, full); }, 1500 * (tries + 1));
+			} else if (!full && im.getAttribute('data-full') !== im.getAttribute('data-src')) {
+				active--;
+				load(im, 0, true);
+			} else {
+				im.alt = '❌';
+				done();
+			}
+		};
+		im.src = url + (tries ? (url.indexOf('?') > -1 ? '&' : '?') + 'r=' + tries : '');
+	}
+	window.avifPausePreviews = function (on) { paused = !!on; if (!paused) { next(); } };
+	window.avifLoadPreviews = function (root) {
+		var list = (root || document).querySelectorAll('img[data-src]');
+		for (var i = 0; i < list.length; i++) {
+			if (!list[i].getAttribute('data-queued')) {
+				list[i].setAttribute('data-queued', '1');
+				queue.push(list[i]);
+			}
+		}
+		next();
+	};
+})();
+</script>

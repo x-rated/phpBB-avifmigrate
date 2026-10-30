@@ -1,0 +1,89 @@
+<!-- INCLUDE overall_header.html -->
+
+<a id="maincontent"></a>
+<h1>{L_AVIFMIGRATE_REVIEW_TITLE}</h1>
+<p><a href="{U_BACK}">&laquo; {L_AVIFMIGRATE_BACK}</a></p>
+
+<p>
+	<a href="{U_T_ATTACH}"<!-- IF not S_AVATARS --> style="font-weight:bold"<!-- ENDIF -->>{L_AVIFMIGRATE_TYPE_ATTACH}</a> |
+	<a href="{U_T_AVATAR}"<!-- IF S_AVATARS --> style="font-weight:bold"<!-- ENDIF -->>{L_AVIFMIGRATE_TYPE_AVATAR}</a>
+	&nbsp;&nbsp;//&nbsp;&nbsp;
+	<!-- BEGIN filters --><a href="{filters.URL}"<!-- IF filters.ACTIVE --> style="font-weight:bold"<!-- ENDIF -->>{filters.LABEL}</a><!-- IF not filters.S_LAST_ROW --> | <!-- ENDIF --><!-- END filters -->
+	&nbsp;&mdash; {TOTAL} {L_AVIFMIGRATE_ITEMS}
+</p>
+
+<!-- IF .items -->
+<form id="avif_review" method="post" action="{S_DELETE_ACTION}" data-type="<!-- IF S_AVATARS -->avatar<!-- ELSE -->attach<!-- ENDIF -->" data-ok="{L_AVIFMIGRATE_STATUS_OK}" data-err="{L_AVIFMIGRATE_ERROR}">
+{S_FORM_TOKEN}
+<div class="pagination"><!-- IF .pagination --><!-- INCLUDE pagination.html --><!-- ENDIF --></div>
+<table class="table1">
+	<thead><tr><th style="width:30px"><input type="checkbox" id="avif_all"></th><th style="width:130px">{L_AVIFMIGRATE_COL_PREVIEW}</th><th><a href="{U_SORT_ID}" style="color:inherit">#{ARR_ID}</a> / <a href="{U_SORT_NAME}" style="color:inherit">{L_AVIFMIGRATE_COL_ITEM}{ARR_NAME}</a> / <a href="{U_SORT_SIZE}" style="color:inherit">{L_AVIFMIGRATE_COL_SIZE}{ARR_SIZE}</a></th><th><a href="{U_SORT_SAVED}" style="color:inherit">{L_AVIFMIGRATE_COL_SAVED}{ARR_SAVED}</a> / <a href="{U_SORT_STATUS}" style="color:inherit">{L_AVIFMIGRATE_COL_STATUS}{ARR_STATUS}</a></th><th><a href="{U_SORT_WHERE}" style="color:inherit">{L_AVIFMIGRATE_COL_WHERE}{ARR_WHERE}</a></th></tr></thead>
+	<tbody>
+	<!-- BEGIN items -->
+	<tr class="<!-- IF items.S_ROW_COUNT is even -->row1<!-- ELSE -->row2<!-- ENDIF -->">
+		<td><input type="checkbox" class="avif_cb" name="mark[]" value="{items.ID}"></td>
+		<td><!-- IF items.U_IMG --><a href="{items.U_FULL}" target="_blank" rel="noopener"><img data-src="{items.U_IMG}" data-full="{items.U_FULL}" alt="&#8987;" style="max-width:120px;max-height:90px;display:block"></a><!-- ENDIF --></td>
+		<td>#{items.ID}: {items.NAME}<!-- IF items.BEFORE --><br><!-- IF items.OK -->{items.BEFORE} &rarr; {items.AFTER} ({items.SAVED})<!-- ELSE -->{items.BEFORE}<!-- ENDIF --><!-- ENDIF --></td>
+		<td><span class="avif_st"><!-- IF items.OK -->{L_AVIFMIGRATE_STATUS_OK}<!-- ELSE -->{items.STATUS_L}<!-- ENDIF --><!-- IF items.MESSAGE --><br><em>{items.MESSAGE}</em><!-- ENDIF --></span><!-- IF items.STATUS == 'queued' --><br><input type="button" class="button2 avif_one" data-id="{items.ID}" value="{L_AVIFMIGRATE_CONVERT_ONE}"><!-- ENDIF --></td>
+		<td><!-- IF items.U_WHERE --><a href="{items.U_WHERE}" target="_blank" rel="noopener">{items.WHERE}</a><!-- ELSE -->{items.WHERE}<!-- ENDIF --></td>
+	</tr>
+	<!-- END items -->
+	</tbody>
+</table>
+<div class="pagination"><!-- IF .pagination --><!-- INCLUDE pagination.html --><!-- ENDIF --></div>
+<fieldset class="quick">
+	<span id="avif_count">0</span> {L_AVIFMIGRATE_SELECTED}
+	<input class="button2" type="submit" name="delete_selected" value="<!-- IF S_AVATARS -->{L_AVIFMIGRATE_DELETE_AV}<!-- ELSE -->{L_AVIFMIGRATE_DELETE}<!-- ENDIF -->">
+</fieldset>
+</form>
+
+<!-- INCLUDE acp_avifmigrate_js.html -->
+<script>
+(function () {
+	window.avifLoadPreviews(document);
+
+	var rform = document.getElementById('avif_review');
+	var btns = document.querySelectorAll('.avif_one');
+	Array.prototype.forEach.call(btns, function (btn) {
+		btn.addEventListener('click', function () {
+			var tr = btn.closest('tr'), st = tr.querySelector('.avif_st'), td = st.parentNode;
+			var fd = new FormData(rform);
+			fd.append('do', 'convert_one'); fd.append('item_type', rform.dataset.type); fd.append('item_id', btn.dataset.id);
+			btn.disabled = true;
+			fetch(rform.action, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+				.then(function (r) { if (!r.ok) { throw new Error('HTTP ' + r.status); } return r.json(); })
+				.then(function (j) {
+					if (j.error) { throw new Error(j.error); }
+					var it = j.item;
+					st.innerHTML = it.OK ? rform.dataset.ok : it.STATUS_L + (it.MESSAGE ? '<br><em>' + it.MESSAGE + '</em>' : '');
+					var info = tr.children[2];
+					info.innerHTML = '#' + it.ID + ': ' + it.NAME + (it.BEFORE ? '<br>' + (it.OK ? it.BEFORE + ' &rarr; ' + it.AFTER + ' (' + it.SAVED + ')' : it.BEFORE) : '');
+					btn.parentNode.removeChild(btn);
+				})
+				.catch(function (e) { btn.disabled = false; st.textContent = rform.dataset.err + ' ' + e.message; });
+		});
+	});
+
+	var cbs = Array.prototype.slice.call(document.querySelectorAll('.avif_cb'));
+	var all = document.getElementById('avif_all');
+	var cnt = document.getElementById('avif_count');
+	var last = -1;
+	function upd() { cnt.textContent = cbs.filter(function (c) { return c.checked; }).length; }
+	cbs.forEach(function (c, i) {
+		c.addEventListener('click', function (e) {
+			if (e.shiftKey && last > -1) {
+				var a = Math.min(last, i), b = Math.max(last, i);
+				for (var k = a; k <= b; k++) { cbs[k].checked = c.checked; }
+			}
+			last = i;
+			upd();
+		});
+	});
+	if (all) all.addEventListener('click', function () { cbs.forEach(function (c) { c.checked = all.checked; }); upd(); });
+})();
+</script>
+<!-- ELSE -->
+<p>{L_AVIFMIGRATE_NOTHING}</p>
+<!-- ENDIF -->
+
+<!-- INCLUDE overall_footer.html -->

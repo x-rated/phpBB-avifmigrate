@@ -14,6 +14,8 @@ class converter
 	/** Screenshots and graphics: GD switches the encoder to full-resolution colour (4:4:4) from quality 90 (same rule as slamb/avifattach). */
 	const QUALITY_SHARP = 90;
 	const EXTS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
+	/** Statuses of files that were made smaller: converted to AVIF, or a PNG packed losslessly. */
+	const DONE = ['ok', 'optimized'];
 
 	/** @var \phpbb\db\driver\driver_interface */
 	protected $db;
@@ -195,6 +197,11 @@ class converter
 
 			$this->db->sql_query('UPDATE ' . $this->attach_table . ' SET ' . $this->db->sql_build_array('UPDATE', $upd) . ' WHERE attach_id = ' . (int) $a['attach_id']);
 			$entry['item_name'] = $new_name;
+		}
+		else if ($res['status'] === 'optimized')
+		{
+			// still the same PNG (name, type and thumbnail stay), only smaller
+			$this->db->sql_query('UPDATE ' . $this->attach_table . ' SET filesize = ' . (int) $res['size_after'] . ' WHERE attach_id = ' . (int) $a['attach_id']);
 		}
 
 		return $this->finish($entry, $res);
@@ -626,7 +633,7 @@ class converter
 	/** Counts for the overview: not analysed, ready (queued), broken, converted, ... */
 	public function stats($type)
 	{
-		$out = ['new' => 0, 'queued' => 0, 'broken' => 0, 'unsupported' => 0, 'ok' => 0, 'skipped_animated' => 0, 'skipped_avif' => 0, 'too_large' => 0, 'failed' => 0];
+		$out = ['new' => 0, 'queued' => 0, 'broken' => 0, 'unsupported' => 0, 'ok' => 0, 'optimized' => 0, 'not_smaller' => 0, 'skipped_animated' => 0, 'skipped_avif' => 0, 'too_large' => 0, 'failed' => 0];
 		$result = $this->db->sql_query('SELECT status, COUNT(*) AS c FROM ' . $this->log_table . " WHERE item_type = '" . $this->db->sql_escape($type) . "' GROUP BY status");
 		while ($row = $this->db->sql_fetchrow($result))
 		{
@@ -647,7 +654,7 @@ class converter
 	public function savings($type)
 	{
 		$out = ['count' => 0, 'before' => 0, 'after' => 0, 'saved' => 0, 'percent' => 0, 'ready_size' => 0, 'ready_count' => 0, 'estimate' => 0];
-		$result = $this->db->sql_query('SELECT COUNT(*) AS c, SUM(size_before) AS b, SUM(size_after) AS a FROM ' . $this->log_table . " WHERE status = 'ok' AND item_type = '" . $this->db->sql_escape($type) . "'");
+		$result = $this->db->sql_query('SELECT COUNT(*) AS c, SUM(size_before) AS b, SUM(size_after) AS a FROM ' . $this->log_table . " WHERE status IN ('ok', 'optimized') AND item_type = '" . $this->db->sql_escape($type) . "'");
 		$row = $this->db->sql_fetchrow($result);
 		$this->db->sql_freeresult($result);
 		$out['count'] = (int) $row['c'];
@@ -694,8 +701,8 @@ class converter
 			case 'broken':      $where .= " AND l.status = 'broken'"; break;
 			case 'unsupported': $where .= " AND l.status = 'unsupported'"; break;
 			case 'ready':       $where .= " AND l.status = 'queued'"; break;
-			case 'converted':   $where .= " AND l.status IN ('ok', 'skipped_avif')"; break;
-			case 'skipped':     $where .= " AND l.status IN ('skipped_animated', 'too_large')"; break;
+			case 'converted':   $where .= " AND l.status IN ('ok', 'optimized', 'skipped_avif')"; break;
+			case 'skipped':     $where .= " AND l.status IN ('skipped_animated', 'too_large', 'not_smaller')"; break;
 			case 'failed':      $where .= " AND l.status = 'failed'"; break;
 			default:            $where .= " AND l.status <> 'pending'"; break;
 		}
@@ -742,7 +749,7 @@ class converter
 	 * Re-encode one image file as AVIF in place (atomic rename). Never touches the file unless the
 	 * new one has been written and decoded back successfully.
 	 *
-	 * @return array status (ok|skipped_avif|skipped_animated|too_large|failed), message, size_before, size_after
+	 * @return array status (ok|optimized|not_smaller|skipped_avif|skipped_animated|too_large|failed), message, size_before, size_after
 	 */
 	public function convert_file($path)
 	{
@@ -826,6 +833,27 @@ class converter
 			return $r('failed', 'AVIF encoding failed', $before);
 		}
 
+		// a PNG that packs smaller than the AVIF stays a PNG, compressed losslessly (same name, type and thumbnail,
+		// identical pixels); the same when AVIF would not be smaller than the original
+		if ($info[2] === IMAGETYPE_PNG && png_optimizer::supported())
+		{
+			$packed = $this->png_candidate($path, $before);
+			if ($packed !== false && strlen($packed[1]) <= $after)
+			{
+				$n = $this->write_png($path, $packed[0], $packed[1]);
+				if ($n > 0)
+				{
+					@unlink($tmp);
+					return $r('optimized', 'PNG optimized losslessly', $before, $n);
+				}
+			}
+		}
+		if ($after >= $before)
+		{
+			@unlink($tmp);
+			return $r('not_smaller', 'AVIF is not smaller, original kept', $before, $before);
+		}
+
 		// decode it back before the original is replaced
 		$chk = @getimagesize($tmp);
 		$back = avif_codec::decode($tmp);
@@ -845,6 +873,50 @@ class converter
 		}
 
 		return $r('ok', '', $before, $after);
+	}
+
+	/**
+	 * The file and its losslessly packed version (see png_optimizer), or false when there is nothing smaller.
+	 * @return array|false [original bytes, packed bytes]
+	 */
+	protected function png_candidate($path, $before)
+	{
+		$raw = @file_get_contents($path);
+		if ($raw === false || strlen($raw) !== $before)
+		{
+			return false;
+		}
+		$opt = png_optimizer::optimize($raw);
+		return $opt === false ? false : [$raw, $opt];
+	}
+
+	/**
+	 * Replace the file with the packed version. It is read back and compared pixel by pixel before and after the
+	 * swap; the original is put back if anything differs.
+	 *
+	 * @return int new size in bytes, 0 when the file was left as it was
+	 */
+	protected function write_png($path, $raw, $opt)
+	{
+		$tmp = $path . '.png.tmp';
+		if (@file_put_contents($tmp, $opt) !== strlen($opt) || @file_get_contents($tmp) !== $opt || !png_optimizer::same_pixels($raw, $opt))
+		{
+			@unlink($tmp);
+			return 0;
+		}
+		if (function_exists('chmod') && function_exists('fileperms')) { @chmod($tmp, @fileperms($path) & 0777); }
+		if (!@rename($tmp, $path))
+		{
+			@unlink($tmp);
+			return 0;
+		}
+		clearstatcache(true, $path);
+		if (@file_get_contents($path) !== $opt)
+		{
+			@file_put_contents($path, $raw); // put the original back
+			return 0;
+		}
+		return strlen($opt);
 	}
 
 	/** getimagesize first; if it cannot parse the data, let GD try (it is more tolerant, like browsers). */

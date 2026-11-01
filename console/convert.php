@@ -71,7 +71,7 @@ class convert extends \phpbb\console\command\command
 			{
 				$left--;
 				$done++;
-				if ($r['status'] === 'ok')
+				if (in_array($r['status'], \slamb\avifmigrate\core\converter::DONE, true))
 				{
 					$saved += $r['size_before'] - $r['size_after'];
 					$output->writeln(sprintf('<info>%s</info>   %s #%d %s  %d -> %d B', $this->user->lang('AVIFMIGRATE_CLI_OK'), $r['item_type'], $r['item_id'], $r['item_name'], $r['size_before'], $r['size_after']));

@@ -120,7 +120,7 @@ class main_module
 
 		$before = (int) $r['size_before'];
 		$after = (int) $r['size_after'];
-		$ok = ($r['status'] === 'ok');
+		$ok = in_array($r['status'], \slamb\avifmigrate\core\converter::DONE, true);
 
 		return [
 			'ID'        => $id,
@@ -213,7 +213,7 @@ class main_module
 					continue;
 				}
 				$ids[] = (int) $r['item_id'];
-				if ($r['status'] === 'ok')
+				if (in_array($r['status'], \slamb\avifmigrate\core\converter::DONE, true))
 				{
 					$saved += max(0, (int) $r['size_before'] - (int) $r['size_after']);
 				}
@@ -285,11 +285,11 @@ class main_module
 			{
 				if ($r[0] === 'skipped')
 				{
-					$n = $st[$t]['skipped_animated'] + $st[$t]['too_large'];
+					$n = $st[$t]['skipped_animated'] + $st[$t]['too_large'] + $st[$t]['not_smaller'];
 				}
 				else if ($r[0] === 'converted')
 				{
-					$n = $st[$t]['ok'] + $st[$t]['skipped_avif']; // files that were already AVIF count as converted
+					$n = $st[$t]['ok'] + $st[$t]['optimized'] + $st[$t]['skipped_avif']; // already AVIF and optimized PNGs count as converted
 				}
 				else
 				{

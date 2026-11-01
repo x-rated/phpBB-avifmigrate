@@ -1,11 +1,12 @@
 # AVIF migration (slamb/avifmigrate)
 
-**Version 0.9.3 (pre-release).** Companion of `slamb/avifattach`; 1.0.0 will be the first stable release.
+**Version 0.10.0 (pre-release).** Companion of `slamb/avifattach`; 1.0.0 will be the first stable release.
 
 One-off tool that converts images uploaded earlier to AVIF (GD, or Imagick when GD has no AVIF; quality 50; PNG/GIF/BMP and lossless WebP quality 90 = full-resolution 4:4:4 colour; still images only, EXIF/GPS dropped, EXIF orientation applied first).
 
 - Install: copy `slamb/avifmigrate` into `ext/`, ACP -> Customise -> Manage extensions -> enable. Page: ACP -> Extensions -> AVIF migration.
 - Needs PHP GD with AVIF (`imageavif`, `imagecreatefromavif`) and `avif` in an allowed extension group (Images).
+- **PNG stays PNG when that is smaller.** A PNG that packs losslessly to no more than the AVIF size (or where AVIF would not be smaller than the original) is not converted: it is compressed in place (palette for at most 256 colours, useless alpha dropped, best scanline filter and deflate settings, metadata removed; colour profile, sRGB, gamma and chromaticities stay) and keeps its name, type and thumbnail, only `filesize` changes. It is logged as *converted* with the note "PNG optimized losslessly". The result is compared pixel by pixel with the original, written, read back and compared again; on any difference the original stays. 16-bit, animated and very large PNGs (over 4 MB or 6 megapixels) are not re-encoded. Any other image whose AVIF would not be smaller than the original now stays as it is (status *skipped*, "AVIF is not smaller") instead of being replaced.
 - Always oldest first, N images per run. Each processed item is logged (also failed / skipped animated ones) and is never picked again.
 - Attachments: file replaced in place (physical name has no extension), `real_filename` ext, `extension`, `mimetype`, `filesize` updated; thumbnail converted too (or switched off if that fails). Post text is not touched.
 - Avatars (separate run): file converted in place but the name keeps its old extension, because `download/file.php` only serves png/gif/jpg/jpeg avatars; it sends the Content-Type from the file content, so the browser gets image/avif.
